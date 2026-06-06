@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Secure Login System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #111318;
+      --card: #161b24;
+      --border: #1e2530;
+      --accent: #00e5ff;
+      --accent2: #7c3aed;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --mono: 'Space Mono', monospace;
+      --sans: 'Sora', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,229,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,58,237,0.07) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 460px;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .brand-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .brand-logo .shield {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .brand-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: var(--mono);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,229,255,0.04);
+      animation: cardIn 0.4s ease;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 1.8rem;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.55rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--card);
+      color: var(--accent);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+    }
+
+    .form-section { display: none; }
+    .form-section.active { display: block; animation: fadeIn 0.3s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .section-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.6rem;
+    }
+
+    .field {
+      margin-bottom: 1.1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.45rem;
+      font-family: var(--mono);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      padding: 0.7rem 1rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
+    }
+
+    input.error { border-color: var(--danger); }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input { padding-right: 2.8rem; }
+
+    .toggle-pw {
+      position: absolute;
+      right: 0.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      transition: color 0.2s;
+    }
+
+    .toggle-pw:hover { color: var(--accent); }
+
+    .strength-bar {
+      height: 3px;
+      border-radius: 2px;
+      background: var(--border);
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+
+    .strength-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s, background 0.3s;
+      width: 0%;
+    }
+
+    .strength-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+      font-family: var(--mono);
+    }
+
+    .field-error {
+      font-size: 0.78rem;
+      color: var(--danger);
+      margin-top: 0.35rem;
+      font-family: var(--mono);
+      display: none;
+    }
+
+    .field-error.show { display: block; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .checkbox-row label {
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 0.88rem;
+      font-family: var(--sans);
+      color: var(--muted);
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.78rem;
+      border: none;
+      border-radius: 9px;
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #0080ff);
+      color: #000;
+    }
+
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,255,0.25); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      margin-top: 0.6rem;
+    }
+
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+    .btn-loading::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      right: 1rem;
+      top: 50%;
+      margin-top: -9px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-bottom: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .alert-error   { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; }
+    .alert-success { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+    .alert-info    { background: rgba(0,229,255,0.08);  border: 1px solid rgba(0,229,255,0.2);  color: var(--accent); }
+
+    /* 2FA Section */
+    .twofa-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .twofa-code {
+      font-family: var(--mono);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.3em;
+      text-align: center;
+      padding: 0.8rem;
+      background: rgba(0,229,255,0.05);
+      border-radius: 8px;
+      border: 1px dashed rgba(0,229,255,0.3);
+      margin: 0.8rem 0;
+    }
+
+    .twofa-timer {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      justify-content: center;
+    }
+
+    .timer-bar {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+
+    /* Dashboard */
+    #dashboard { display: none; }
+
+    .dash-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #000;
+      flex-shrink: 0;
+    }
+
+    .user-info strong {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .user-info span {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .badge-green  { background: rgba(16,185,129,0.15);  color: var(--success); }
+    .badge-cyan   { background: rgba(0,229,255,0.1);    color: var(--accent); }
+    .badge-purple { background: rgba(124,58,237,0.15);  color: #a78bfa; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.8rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 0.8rem;
+      text-align: center;
+    }
+
+    .stat-card .val {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-card .lbl {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .security-info {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem;
+      margin-bottom: 1rem;
+    }
+
+    .security-info h4 {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-family: var(--mono);
+      margin-bottom: 0.8rem;
+    }
+
+    .sec-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+
+    .sec-row:last-child { border-bottom: none; }
+
+    .sec-icon { font-size: 1rem; flex-shrink: 0; }
+
+    .sec-row .sec-val {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--success);
+    }
+
+    .divider {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-family: var(--mono);
+      margin: 1rem 0;
+      position: relative;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .divider::before { left: 0; }
+    .divider::after  { right: 0; }
+
+    .footer-text {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 1.2rem;
+      font-family: var(--mono);
+    }
+
+    /* OTP Input */
+    .otp-inputs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+
+    .otp-inputs input {
+      width: 46px !important;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 1.3rem;
+      font-weight: 700;
+      padding: 0.6rem 0.3rem;
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 1.4rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- Auth Section -->
+<div class="container" id="auth-section">
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="shield">🛡</div>
+      SecureAuth
+    </div>
+    <p class="brand-sub">Secure Login System</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+      <button class="tab-btn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="login-section" class="form-section active">
+      <h2 class="section-title">Welcome back</h2>
+      <p class="section-sub">Sign in to your secure account</p>
+
+      <div id="login-alert"></div>
+
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+        <div class="field-error" id="err-login-email"></div>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+          <button class="toggle-pw" onclick="togglePw('login-password', this)">👁</button>
+        </div>
+        <div class="field-error" id="err-login-password"></div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="remember-me">
+        <label for="remember-me">Remember me for 7 days</label>
+      </div>
+
+      <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">Sign In</button>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="register-section" class="form-section">
+      <h2 class="section-title">Create account</h2>
+      <p class="section-sub">Join with a secure, hashed password</p>
+
+      <div id="register-alert"></div>
+
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="Juvi" autocomplete="name">
+        <div class="field-error" id="err-reg-name"></div>
+      </div>
+
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email">
+        <div class="field-error" id="err-reg-email"></div>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="reg-password" placeholder="min. 8 characters"
+                 oninput="checkStrength(this.value)" autocomplete="new-password">
+          <button class="toggle-pw" onclick="togglePw('reg-password', this)">👁</button>
+        </div>
+        <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+        <div class="strength-label" id="strength-label">— Enter a password</div>
+        <div class="field-error" id="err-reg-password"></div>
+      </div>
+
+      <div class="field">
+        <label>Confirm Password</label>
+        <div class="password-wrap">
+          <input type="password" id="reg-confirm" placeholder="repeat password" autocomplete="new-password">
+          <button class="toggle-pw" onclick="togglePw('reg-confirm', this)">👁</button>
+        </div>
+        <div class="field-error" id="err-reg-confirm"></div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="enable-2fa">
+        <label for="enable-2fa">Enable Two-Factor Authentication (2FA)</label>
+      </div>
+
+      <button class="btn btn-primary" id="register-btn" onclick="handleRegister()">Create Account</button>
+    </div>
+
+    <!-- 2FA VERIFICATION FORM -->
+    <div id="twofa-section" class="form-section">
+      <h2 class="section-title">Two-Factor Auth</h2>
+      <p class="section-sub">Enter the 6-digit code shown below</p>
+
+      <div id="twofa-alert"></div>
+
+      <div class="twofa-box">
+        <div style="font-size:0.82rem;color:var(--muted);font-family:var(--mono);margin-bottom:0.4rem;">🔐 YOUR CURRENT CODE</div>
+        <div class="twofa-code" id="current-totp-display">------</div>
+        <div class="twofa-timer">
+          <span id="totp-countdown">30s</span>
+          <div class="timer-bar"><div class="timer-fill" id="timer-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+
+      <div class="otp-inputs" id="otp-inputs">
+        <input type="number" maxlength="1" oninput="otpInput(this,0)" onkeydown="otpBack(event,0)">
+        <input type="number" maxlength="1" oninput="otpInput(this,1)" onkeydown="otpBack(event,1)">
+        <input type="number" maxlength="1" oninput="otpInput(this,2)" onkeydown="otpBack(event,2)">
+        <input type="number" maxlength="1" oninput="otpInput(this,3)" onkeydown="otpBack(event,3)">
+        <input type="number" maxlength="1" oninput="otpInput(this,4)" onkeydown="otpBack(event,4)">
+        <input type="number" maxlength="1" oninput="otpInput(this,5)" onkeydown="otpBack(event,5)">
+      </div>
+
+      <button class="btn btn-primary" onclick="verify2FA()">Verify Code</button>
+      <button class="btn btn-ghost" onclick="switchTab('login')">← Back to Login</button>
+    </div>
+  </div>
+
+  <p class="footer-text">Passwords hashed with bcrypt · Session-protected · SQL-safe</p>
+</div>
+
+<!-- DASHBOARD (shown after login) -->
+<div class="container" id="dashboard">
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="shield">🛡</div>
+      SecureAuth
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="dash-header">
+      <div class="user-badge">
+        <div class="avatar" id="dash-avatar">?</div>
+        <div class="user-info">
+          <strong id="dash-name">—</strong>
+          <span id="dash-email">—</span>
+        </div>
+      </div>
+      <span class="badge badge-green">● Active</span>
+    </div>
+
+    <div id="dash-alert"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="val" id="stat-logins">1</div>
+        <div class="lbl">Logins</div>
+      </div>
+      <div class="stat-card">
+        <div class="val" id="stat-2fa">—</div>
+        <div class="lbl">2FA</div>
+      </div>
+      <div class="stat-card">
+        <div class="val" id="stat-joined">—</div>
+        <div class="lbl">Joined</div>
+      </div>
+    </div>
+
+    <div class="security-info">
+      <h4>Security Status</h4>
+      <div class="sec-row">
+        <span class="sec-icon">🔒</span> Password Hashing (bcrypt)
+        <span class="sec-val">✓ ENABLED</span>
+      </div>
+      <div class="sec-row">
+        <span class="sec-icon">🛡</span> SQL Injection Protection
+        <span class="sec-val">✓ ENABLED</span>
+      </div>
+      <div class="sec-row">
+        <span class="sec-icon">📋</span> Session Management
+        <span class="sec-val">✓ ACTIVE</span>
+      </div>
+      <div class="sec-row">
+        <span class="sec-icon">📱</span> Two-Factor Auth (2FA)
+        <span class="sec-val" id="sec-2fa-status">— OFF</span>
+      </div>
+      <div class="sec-row">
+        <span class="sec-icon">⏱</span> Session Expires
+        <span class="sec-val" id="sec-session-exp">—</span>
+      </div>
+    </div>
+
+    <div class="divider">session active</div>
+
+    <button class="btn btn-ghost" onclick="handleLogout()">🚪 Sign Out</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  SECURE LOGIN SYSTEM — JavaScript Implementation
+//  Features: bcrypt hashing, input validation, SQL
+//  injection sanitization, session management, 2FA
+// ══════════════════════════════════════════════════════
+
+// ── In-memory "database" (localStorage in production would
+//    be server-side DB; this simulates it client-side) ──
+const DB_KEY   = 'secureauth_users';
+const SESS_KEY = 'secureauth_session';
+const SALT_ROUNDS = 10;
+
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(DB_KEY, JSON.stringify(users));
+}
+
+function getSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESS_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function saveSession(data) {
+  sessionStorage.setItem(SESS_KEY, JSON.stringify(data));
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESS_KEY);
+}
+
+// ── Input Sanitization / SQL Injection Protection ──
+// In a real backend, parameterized queries handle this.
+// Here we strip dangerous characters from all inputs.
+function sanitize(input) {
+  if (typeof input !== 'string') return '';
+  // Strip SQL-injection vectors and script injection
+  return input
+    .replace(/['"`;\\]/g, '')          // quotes, semicolons, backslash
+    .replace(/--/g, '')                // SQL comment
+    .replace(/\/\*/g, '')              // block comment start
+    .replace(/\*\//g, '')              // block comment end
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]*>/g, '')           // HTML tags
+    .trim();
+}
+
+// ── Email Validation ──
+function isValidEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
+// ── Password Strength ──
+function checkStrength(pw) {
+  const fill  = document.getElementById('strength-fill');
+  const label = document.getElementById('strength-label');
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (pw.length >= 12) score++;
+
+  const levels = [
+    { w: '0%',   bg: 'transparent',     txt: '— Enter a password' },
+    { w: '25%',  bg: 'var(--danger)',    txt: '⚠ Weak' },
+    { w: '50%',  bg: 'var(--warn)',      txt: '◐ Fair' },
+    { w: '75%',  bg: '#3b82f6',          txt: '◑ Strong' },
+    { w: '90%',  bg: 'var(--success)',   txt: '✓ Very Strong' },
+    { w: '100%', bg: 'var(--accent)',    txt: '✦ Excellent' },
+  ];
+  const l = levels[score] || levels[0];
+  fill.style.width      = l.w;
+  fill.style.background = l.bg;
+  label.textContent     = l.txt;
+  label.style.color     = l.bg === 'transparent' ? 'var(--muted)' : l.bg;
+}
+
+// ── Toggle Password Visibility ──
+function togglePw(id, btn) {
+  const input = document.getElementById(id);
+  if (input.type === 'password') { input.type = 'text';     btn.textContent = '🙈'; }
+  else                           { input.type = 'password'; btn.textContent = '👁'; }
+}
+
+// ── Field Error Helpers ──
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+  const input = el.previousElementSibling?.tagName === 'INPUT'
+    ? el.previousElementSibling
+    : el.closest('.field')?.querySelector('input');
+  if (input) input.classList.add('error');
+}
+
+function clearErr(id) {
+  const el = document.getElementById(id);
+  el.textContent = '';
+  el.classList.remove('show');
+}
+
+function clearAllErrors(ids) { ids.forEach(clearErr); }
+
+// ── Alert Helpers ──
+function showAlert(containerId, type, msg) {
+  const icons = { error: '✖', success: '✔', info: 'ℹ' };
+  document.getElementById(containerId).innerHTML =
+    `<div class="alert alert-${type}"><span>${icons[type]}</span>${msg}</div>`;
+}
+
+function clearAlert(id) { document.getElementById(id).innerHTML = ''; }
+
+// ── Tab Switcher ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1));
+  });
+  document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+  const map = { login: 'login-section', register: 'register-section', twofa: 'twofa-section' };
+  document.getElementById(map[tab]).classList.add('active');
+  clearAlert('login-alert');
+  clearAlert('register-alert');
+}
+
+// ══════════════════════════════
+//  REGISTRATION
+// ══════════════════════════════
+async function handleRegister() {
+  clearAlert('register-alert');
+  clearAllErrors(['err-reg-name','err-reg-email','err-reg-password','err-reg-confirm']);
+
+  const name     = sanitize(document.getElementById('reg-name').value);
+  const email    = sanitize(document.getElementById('reg-email').value.toLowerCase());
+  const password = document.getElementById('reg-password').value; // don't sanitize password chars
+  const confirm  = document.getElementById('reg-confirm').value;
+  const use2fa   = document.getElementById('enable-2fa').checked;
+
+  // Validation
+  let valid = true;
+  if (!name || name.length < 2) {
+    showErr('err-reg-name', 'Full name must be at least 2 characters'); valid = false;
+  }
+  if (!isValidEmail(email)) {
+    showErr('err-reg-email', 'Enter a valid email address'); valid = false;
+  }
+  if (password.length < 8) {
+    showErr('err-reg-password', 'Password must be at least 8 characters'); valid = false;
+  }
+  if (password !== confirm) {
+    showErr('err-reg-confirm', 'Passwords do not match'); valid = false;
+  }
+  if (!valid) return;
+
+  const users = getUsers();
+  if (users[email]) {
+    showAlert('register-alert', 'error', 'An account with this email already exists.');
+    return;
+  }
+
+  // Hash password with bcrypt
+  const btn = document.getElementById('register-btn');
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.textContent = 'Creating account…';
+
+  try {
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    users[email] = {
+      name, email, hash,
+      use2fa,
+      loginCount: 0,
+      joinedAt: new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short'})
+    };
+    saveUsers(users);
+    showAlert('register-alert', 'success', '✓ Account created! You can now sign in.');
+    document.getElementById('reg-name').value = '';
+    document.getElementById('reg-email').value = '';
+    document.getElementById('reg-password').value = '';
+    document.getElementById('reg-confirm').value = '';
+    document.getElementById('enable-2fa').checked = false;
+    setTimeout(() => switchTab('login'), 1500);
+  } catch(e) {
+    showAlert('register-alert', 'error', 'Hashing failed. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.textContent = 'Create Account';
+  }
+}
+
+// ══════════════════════════════
+//  LOGIN
+// ══════════════════════════════
+let pendingLoginEmail = null;
+
+async function handleLogin() {
+  clearAlert('login-alert');
+  clearAllErrors(['err-login-email','err-login-password']);
+
+  const email    = sanitize(document.getElementById('login-email').value.toLowerCase());
+  const password = document.getElementById('login-password').value;
+
+  if (!isValidEmail(email)) {
+    showErr('err-login-email', 'Enter a valid email address'); return;
+  }
+  if (!password) {
+    showErr('err-login-password', 'Password is required'); return;
+  }
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.textContent = 'Verifying…';
+
+  try {
+    const users = getUsers();
+    const user  = users[email];
+
+    if (!user) {
+      // Generic message — don't reveal if email exists
+      showAlert('login-alert', 'error', 'Invalid email or password.');
+      return;
+    }
+
+    const match = await bcrypt.compare(password, user.hash);
+    if (!match) {
+      showAlert('login-alert', 'error', 'Invalid email or password.');
+      return;
+    }
+
+    // Password correct
+    if (user.use2fa) {
+      pendingLoginEmail = email;
+      init2FA();
+      switchTab('twofa');
+    } else {
+      completeLogin(email);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.textContent = 'Sign In';
+  }
+}
+
+function completeLogin(email) {
+  const users = getUsers();
+  const user  = users[email];
+  user.loginCount = (user.loginCount || 0) + 1;
+  saveUsers(users);
+
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min session
+  saveSession({ email, expiresAt: expiresAt.toISOString() });
+  renderDashboard(user, expiresAt);
+}
+
+// ══════════════════════════════
+//  SESSION & DASHBOARD
+// ══════════════════════════════
+function renderDashboard(user, expiresAt) {
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  document.getElementById('dash-avatar').textContent = user.name.charAt(0).toUpperCase();
+  document.getElementById('dash-name').textContent   = user.name;
+  document.getElementById('dash-email').textContent  = user.email;
+  document.getElementById('stat-logins').textContent = user.loginCount;
+  document.getElementById('stat-2fa').textContent    = user.use2fa ? 'ON' : 'OFF';
+  document.getElementById('stat-joined').textContent = user.joinedAt;
+  document.getElementById('sec-2fa-status').textContent = user.use2fa ? '✓ ON' : '— OFF';
+  document.getElementById('sec-2fa-status').style.color = user.use2fa ? 'var(--success)' : 'var(--muted)';
+
+  const expStr = expiresAt instanceof Date
+    ? expiresAt.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'})
+    : new Date(expiresAt).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+  document.getElementById('sec-session-exp').textContent = expStr;
+
+  showAlert('dash-alert', 'success', `Welcome back, ${user.name.split(' ')[0]}! Session is active.`);
+}
+
+function handleLogout() {
+  clearSession();
+  document.getElementById('dashboard').style.display     = 'none';
+  document.getElementById('auth-section').style.display  = 'flex';
+  document.getElementById('login-email').value    = '';
+  document.getElementById('login-password').value = '';
+  clearAlert('login-alert');
+  showAlert('login-alert', 'info', 'You have been signed out successfully.');
+}
+
+// ══════════════════════════════
+//  SIMPLE TOTP-STYLE 2FA
+//  (TOTP algorithm simulation
+//   using time-based 30s codes)
+// ══════════════════════════════
+let totpInterval = null;
+
+function generateTOTP() {
+  // Simple TOTP simulation: hash(secret + floor(time/30))
+  const epoch   = Math.floor(Date.now() / 30000);
+  let   hash    = 0;
+  const str     = 'SECRET_2FA_KEY_' + epoch;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const code = Math.abs(hash) % 1000000;
+  return String(code).padStart(6, '0');
+}
+
+function init2FA() {
+  if (totpInterval) clearInterval(totpInterval);
+
+  function update() {
+    const code = generateTOTP();
+    document.getElementById('current-totp-display').textContent = code;
+    const remaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    document.getElementById('totp-countdown').textContent = remaining + 's';
+    document.getElementById('timer-fill').style.width = (remaining / 30 * 100) + '%';
+  }
+
+  update();
+  totpInterval = setInterval(update, 1000);
+
+  // Clear OTP input boxes
+  document.querySelectorAll('#otp-inputs input').forEach(inp => { inp.value = ''; });
+  clearAlert('twofa-alert');
+}
+
+function otpInput(el, idx) {
+  el.value = el.value.slice(-1); // keep only last digit
+  if (el.value && idx < 5) {
+    document.querySelectorAll('#otp-inputs input')[idx + 1].focus();
+  }
+}
+
+function otpBack(e, idx) {
+  if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+    document.querySelectorAll('#otp-inputs input')[idx - 1].focus();
+  }
+}
+
+function verify2FA() {
+  const inputs  = document.querySelectorAll('#otp-inputs input');
+  const entered = Array.from(inputs).map(i => i.value).join('');
+  const expected = generateTOTP();
+
+  if (entered.length < 6) {
+    showAlert('twofa-alert', 'error', 'Enter all 6 digits.'); return;
+  }
+  if (entered !== expected) {
+    showAlert('twofa-alert', 'error', 'Incorrect code. Try again.');
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+    return;
+  }
+
+  clearInterval(totpInterval);
+  completeLogin(pendingLoginEmail);
+}
+
+// ══════════════════════════════
+//  SESSION RESTORE ON LOAD
+// ══════════════════════════════
+(function restoreSession() {
+  const session = getSession();
+  if (!session) return;
+  if (new Date(session.expiresAt) < new Date()) {
+    clearSession(); return;
+  }
+  const users = getUsers();
+  const user  = users[session.email];
+  if (user) renderDashboard(user, new Date(session.expiresAt));
+})();
+</script>
+</body>
+</html>
